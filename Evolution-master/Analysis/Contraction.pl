@@ -1,0 +1,227 @@
+#!/usr/bin/perl -w
+
+
+use strict;
+use warnings;
+use Getopt::Long;
+use Data::Dumper;
+ 
+
+#This script calculates the number of loci over time
+            
+my $file;
+my $freq=0;
+my $sum;
+my $hapsum;
+my $loci = 5;
+my $mhc_loci = 1;
+my $outfile;
+my $argc=scalar(@ARGV);
+my $dir;
+my $tempoutfilename;
+my $mostcommon;
+my @SIpool;
+my $hapmostcommon;
+my @hapSIpool;
+my $mapfile;
+my %map;
+my @matrix;
+my $matrixfile;
+my $poolfile;
+my @mhc;
+my @kir;
+my @selectedkir;
+my @selectedhaplotypes;
+
+#print Dumper(@ARGV);
+
+for(my $i=0; $i<$argc; $i++)
+{
+  my $entry=shift @ARGV;
+  if($entry=~/^-dir/) {$i++; $dir=shift @ARGV;}
+  elsif($entry=~/^-out/) {$i++; $tempoutfilename=shift @ARGV;}
+  elsif($entry=~/^-loci_kir/) {$i++; $loci=shift @ARGV;} 
+  elsif($entry=~/^-number_loci_mhc/) {$i++; $mhc_loci=shift @ARGV;} 
+  else {warn "\nunknown option: $entry\n"; exit;}
+}
+
+if ($tempoutfilename) {$outfile=$tempoutfilename;}
+else {$outfile="Loci_number_L=" . $dir . ".txt";}
+
+$mapfile="./" . $dir . "/Sequence.map";
+$file="./" . $dir . "/200000.Backup.data";
+
+if($argc==0)
+{
+	showHelp();
+}
+
+
+
+# First of all load the map
+open(FILE, $mapfile) or die "Could not open $mapfile $!";
+while (<FILE>) {
+
+            next if($_ =~ /#/);
+            my @line = split /\s/, $_;
+            $map{$line[0]}=$line[1];
+}
+
+close(FILE);
+
+# Now get all the genes, self and non self peptides
+
+open(FILE, "$file") or die "Could not open $file: $!";
+
+#get the first two lines 
+
+
+my $line1= <FILE>;
+
+
+#the first line contains the MHCs and KIRs 
+
+my @spline1=split /\t/, $line1;
+# now collect the MHCs
+for (my $in=2; $in<16; $in++)
+{
+push (@mhc, $map{$spline1[$in]});  
+}
+# now collect the KIRs
+for (my $im=16; $im< 156 ; $im++)
+{
+push (@kir, $map{$spline1[$im]});
+}
+
+
+close(FILE);
+
+
+#print Dumper(@mhc);
+#print Dumper(@kir);
+#print Dumper(@self);
+#print Dumper(@nonself);
+#exit; 
+
+
+my $hash;
+#my $gene_file=1;
+my $histogram;
+my $haphistogram;
+opendir DIR, $dir or die "Cannot open $dir $!";
+
+while (my $file = readdir DIR)
+	{
+		next unless $file =~/\.Genes.txt/;
+		my $tempname=(split /\./, $file)[0];
+		$hash->{$tempname}=1;
+	}
+#print Dumper($hash);
+#exit;
+	closedir DIR;
+
+
+	open(OUT, ">$outfile") or die "could not open $outfile: $!";
+	print OUT "# Time\tAverage loci number\tTotal loci 1\tTotal loci 2\tTotal loci 3\tTotal loci 4\tTotal loci 5\n";
+	foreach my $f (sort {$a<=>$b} keys %{$hash})
+	{
+		$sum = 0;
+		my @genes;
+		my $gene_file = $dir.'/'.$f.'.Genes.txt';
+		#print $gene_file, "\n";
+		my $time = $f;
+		#print $time, "\n";
+		open(FILE, "$gene_file") or die "Could not open $gene_file: $!";
+		#exit;	
+		my $haptotal_pop=0;
+		while (<FILE>)
+		{
+			next if($_ =~ /#/);
+			my @line = split /\t/, $_;
+			my $column_m = $mhc_loci*2+1;
+			my $column = $loci+$mhc_loci*2+1;	
+			my $secondcolumn=$loci*2+$mhc_loci*2+1;
+	
+			for(my $i = $column_m; $i<$column; $i++)
+				{
+					push(@genes, $map{$line[$i]});
+			
+				}
+			@genes=Unique(@genes);
+			my $loci=scalar(@genes);
+			$histogram->{$time}->{$loci}++;
+			undef @genes;
+			$haptotal_pop++;
+			for(my $i = $column; $i<$secondcolumn; $i++)
+				{
+					push(@genes, $map{$line[$i]});
+				}				
+			@genes=Unique(@genes);
+			$loci=scalar(@genes);
+			$histogram->{$time}->{$loci}++;
+			undef @genes;
+			$haptotal_pop++;
+		}
+		close(FILE);
+		foreach my $nr (keys %{$histogram->{$time}})
+		{
+			$histogram->{$time}->{$nr}= $histogram->{$time}->{$nr}/$haptotal_pop;
+			$sum+=($histogram->{$time}->{$nr})*$nr;
+		}
+		#print Dumper($histogram);
+		#exit;
+		print OUT $time, "\t", $sum,"\t";
+		for (my $i=1; $i<=5; $i++)
+			{
+			my $count=0;
+			foreach my $nr (keys %{$histogram->{$time}})
+				{
+				if ($i==$nr)
+					{
+					print OUT $histogram->{$time}->{$nr}, "\t";
+					$count++;
+					}
+				}
+			if ($count==0)
+				{
+				print OUT "0.0\t";
+				}
+			}
+		print OUT "\n";
+		$#genes = -1;
+	}
+#	}
+
+
+sub Unique
+{
+    my %hash =map{ $_, 1 } @_;
+    @_ = keys %hash;
+    return @_;
+}
+
+
+sub CalcAverage
+{
+my (@pool)=@_;
+my $N=scalar(@pool);
+my $sum=0;
+foreach my $member (@pool){
+$sum+=$member;
+}
+my $av=$sum/$N;
+return $av;
+}
+
+sub showHelp
+{
+	die("This tool calculates the contraction of haplotypes if any over the years. \nUsage: CollectCheck.pl [options]\n
+	Options\n:
+	-dir (directory where the *Genes.txt files are to be found)
+	-out (outfile, optional, default is Diversity_gene_type_directory.txt)
+	-loci_kir
+	-number_loci_mhc
+	-years 
+
+	\n");
+}

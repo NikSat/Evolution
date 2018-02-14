@@ -1,0 +1,144 @@
+#!/usr/bin/perl -w
+
+
+use strict;
+use warnings;
+use Getopt::Long;
+use Data::Dumper;
+use Cwd;
+
+my $Dir=cwd();
+my $Years=150000;
+my $outfile = "SortedAverage.txt";
+
+# I will use a hash and a reference to sort the results 
+
+my %storage;
+
+my $argc=scalar(@ARGV);  # The arguments
+
+
+for(my $i=0; $i<$argc; $i++)
+	{
+  	my $entry=shift @ARGV;
+	if($entry=~/^-years/) {$i++; $Years=shift @ARGV;}
+	elsif($entry=~/^-out/) {$i++; $outfile=shift @ARGV;}
+  else {warn "\nunknown option: $entry\n"; exit;}
+	}
+
+if($argc==0)
+	{
+	showHelp();
+	}
+
+#print $Dir ,"\n";
+
+#exit;
+#print "OK\n";
+#exit
+# open the directory
+opendir DIR, $Dir or die "Cannot open $Dir $!";
+#print "OK\n";
+# now open the subdirectories in the directory
+
+while (my $subdir= readdir(DIR)) {
+	next if($subdir =~ /\D/);
+	my $name=$subdir;
+	$name=~ s/\D//g;
+	#print $subdir, "\n";
+	my $directory=$Dir. '/' .$subdir;
+	#print $directory, "\n";
+	#exit;
+	opendir SUB_DIR, $directory or die "Cannot open subdirectory $subdir $!";
+	
+	my $filename=$directory.'/PopulationSize.txt';
+	open(FILE, $filename) or die "Could not open PopulationSize.txt in directory $subdir $!";
+	my @population;
+	my @acute;
+	my @chronic;
+	my @immune;
+	while (<FILE>) {
+
+			next if($_ =~ /#/);
+			my @line = split /\t/, $_;
+			unless ($line[0]<$Years) 
+						{
+						push(@population,$line[1]);
+						push(@acute,$line[4]);
+						push(@chronic,$line[5]);
+						push(@immune,$line[6]);						
+						}
+					}
+	close(FILE);
+	my $Average=CalcAverage(@population);
+	my $PopSD=CalcSD(@population);
+	my $AcuteAverage=CalcAverage(@acute);
+	my $AcuteSD=CalcSD(@acute);
+	my $ChronicAverage=CalcAverage(@chronic);
+	my $ChronicSD=CalcSD(@chronic);
+	my $ImmuneAverage=CalcAverage(@immune);
+	my $ImmuneSD=CalcSD(@immune);
+
+$storage{$name}=[$Average,$PopSD,$AcuteAverage,$AcuteSD,$ChronicAverage,$ChronicSD,$ImmuneAverage,$ImmuneSD];
+
+close(SUB_DIR);
+print "$subdir Ok \n";
+}
+
+
+#open the output file
+	open(OUT, ">$outfile") or die "could not open $outfile: $!";
+	print OUT "# Run\tAverage Population\tSD\tAcute Average\tSD\tChronic Average\tSD\tImmune Average\tSD\n";
+	
+# print the contents of the hash in the correct order
+foreach my  $name (sort {$a<=>$b} keys %storage){
+
+print OUT $name, "\t", $storage{$name}[0], "\t",$storage{$name}[1], "\t", $storage{$name}[2], "\t", $storage{$name}[3], "\t", $storage{$name}[4], "\t", $storage{$name}[5],"\t", $storage{$name}[6], "\t", $storage{$name}[7],"\n";
+
+}
+
+close(OUT);
+
+
+sub showHelp
+{
+
+die("This script Calculates the average of the population of as well as the acute,chronic infected and immune for the last variable number of years. The number of (Total years - years of calculation must be given).
+A Directory containing the Directories with the results of the runs should be given. 
+This directories must have a distinct number from 1 to 10 \n");
+
+}
+
+sub CalcAverage
+{
+my (@pool)=@_;
+my $N=scalar(@pool);
+my $sum;
+foreach my $member (@pool){
+$sum+=$member;
+}
+my $av=$sum/$N;
+return $av;
+}
+
+
+sub CalcSD
+{
+my (@pool)=@_;
+my $N=scalar(@pool);
+my $sum;
+foreach my $member (@pool){
+$sum+=$member;
+}
+my $av=$sum/$N;
+foreach (@pool){
+@_=(@_-$av)**2;
+}
+foreach my $member (@pool){
+$sum+=$member;
+}
+$sum=($sum)**0.5;
+my $SD=$sum/$N;
+return $SD;
+}
+

@@ -1,0 +1,83 @@
+[Maximal population size]
+5000
+
+[Initial population size]
+4500
+
+#time step in weeks
+[Time Step]
+1
+
+#t_end in years
+[End of Simulation]
+50000
+
+#time introducing the infection in years
+[Time introducing infection]
+100
+
+#time at which the outputs should be done in years
+[Time outfile]
+100
+
+#time at which a backup of the data should be done
+[Time backup]
+1000
+
+[Mutation rate host]
+0.00005
+
+[Contacts per week]
+1
+
+[KIR Loci]
+5
+
+[MHC Loci]
+1
+
+# 1: HLA C distribution according to data base; 0: all alleles have the same frequency
+[HLA-C alleles distribution]
+0
+
+#defines the diversity of the KIR system
+[MHC-KIR specificity]
+373
+
+# 1: education process is ON; 0: education process is OFF
+[Tuning]
+1
+
+# besides only functional KIRs
+[Extra Number KIRs to be expressed]
+0
+
+#infectiosness of the virus, i.e. increase of death rate due to infection
+[Viral load]
+0.1
+
+#duration of infection in weeks
+[Life time of the virus]
+1
+
+[Transmission rate acute infection]
+0.8
+
+[Transmission rate chronic infection]
+0.15
+
+#Defines how the genes are going to be stored in the outfile integer ID(0), or sequences(1)
+[Gene output]
+0
+
+[Self Pool Size]
+2000
+
+[Non Self Pool Size]
+200
+
+[Presentation Threshold]
+121
+
+[Presented Peptide Length]
+8
